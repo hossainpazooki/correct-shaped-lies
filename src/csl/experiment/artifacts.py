@@ -26,6 +26,7 @@ _SUMMARY_FIELDS = [
     "catch_rate",
     "n_achieved",
     "got_away_rate",
+    "got_away_rate_all",
     "attribution",
 ]
 
@@ -68,6 +69,7 @@ def write_summary_csv(summaries: list[TierSummary], path: str | Path) -> Path:
                     "catch_rate": f"{s.catch_rate:.4f}",
                     "n_achieved": s.n_achieved,
                     "got_away_rate": f"{s.got_away_rate:.4f}",
+                    "got_away_rate_all": f"{s.got_away_rate_all:.4f}",
                     "attribution": ";".join(f"{k}={v}" for k, v in s.attribution.items()),
                 }
             )

@@ -37,7 +37,7 @@ def run_episode(
 ) -> "Trajectory":
     """Drive one episode through the controller and return its (got-away-stamped) trajectory."""
     episode_id = episode_id_for(tier, task.task_id, seed)
-    ctx = EpisodeContext.build(episode_id, submission, task, domain, thresholds)
+    ctx = EpisodeContext.build(episode_id, submission, task, domain, thresholds, episode_seed=seed)
     registry.register(ctx)
     try:
         params = {"episode_id": episode_id, "task_id": task.task_id, "seed": seed, "tier": tier}

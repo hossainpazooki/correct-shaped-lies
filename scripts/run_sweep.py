@@ -39,10 +39,13 @@ def main() -> None:
     write_episodes_csv(records, RESULTS / "episodes.csv")
     write_summary_csv(summaries, RESULTS / "summary.csv")
 
-    print(f"{'tier':5} {'config':10} {'n':>3} {'catch_rate':>11} {'got_away':>9}  attribution")
+    print(f"{'tier':5} {'config':10} {'n':>3} {'catch_rate':>11} {'gotaway/ACH':>12} {'gotaway/all':>12}  attribution")
     for s in summaries:
         attr = ";".join(f"{k}={v}" for k, v in s.attribution.items())
-        print(f"{s.tier:5} {s.controller_config:10} {s.n:>3} {s.catch_rate:>11.3f} {s.got_away_rate:>9.3f}  {attr}")
+        print(
+            f"{s.tier:5} {s.controller_config:10} {s.n:>3} {s.catch_rate:>11.3f} "
+            f"{s.got_away_rate:>12.3f} {s.got_away_rate_all:>12.3f}  {attr}"
+        )
     print(f"\nwrote {RESULTS/'episodes.csv'} and {RESULTS/'summary.csv'}")
 
 

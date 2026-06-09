@@ -84,6 +84,33 @@ func TestTrajectoryEventsAreOrderedAndLogical(t *testing.T) {
 	}
 }
 
+func TestTsLogicalIsPerIntentNotGlobal(t *testing.T) {
+	// Two episodes on the SAME long-lived store must each get ts_logical starting at 1, so a
+	// trajectory is byte-identical regardless of its position in a sweep.
+	store := NewStore()
+	pass := map[string]bool{"correctness": true, "honesty": true, "static_safety": true, "complexity_budget": true}
+	mgr := NewManager(store, fakeEvals{passing: pass})
+
+	mgr.Create("code_generation", map[string]interface{}{"episode_id": "ep-A"})
+	mgr.Process(context.Background(), "ep-A")
+	mgr.Create("code_generation", map[string]interface{}{"episode_id": "ep-B"})
+	mgr.Process(context.Background(), "ep-B")
+
+	a := mgr.Events("ep-A")
+	b := mgr.Events("ep-B")
+	if len(a) != len(b) {
+		t.Fatalf("episodes differ in length: %d vs %d", len(a), len(b))
+	}
+	for i := range a {
+		if a[i].TsLogical != b[i].TsLogical {
+			t.Fatalf("ts_logical differs at %d: %d vs %d (position-dependent!)", i, a[i].TsLogical, b[i].TsLogical)
+		}
+		if a[i].TsLogical != i+1 {
+			t.Fatalf("expected per-intent ordinal %d, got %d", i+1, a[i].TsLogical)
+		}
+	}
+}
+
 func TestInvalidTransitionRejected(t *testing.T) {
 	if IsValidTransition(StatusDeclared, StatusAchieved) {
 		t.Fatal("declared -> achieved should be invalid")

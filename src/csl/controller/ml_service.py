@@ -38,8 +38,9 @@ class EpisodeContext:
         task: "Task",
         domain: "Domain",
         thresholds: dict | None = None,
+        episode_seed: int = 0,
     ) -> "EpisodeContext":
-        evaluators = {e.name: e for e in domain.evaluators(thresholds)}
+        evaluators = {e.name: e for e in domain.evaluators(thresholds, episode_seed=episode_seed)}
         return cls(episode_id=episode_id, submission=submission, task=task, evaluators=evaluators)
 
 
@@ -93,11 +94,14 @@ def create_app(registry: EpisodeRegistry | None = None):
             raise HTTPException(status_code=404, detail=f"unknown evaluator {eval_name!r}")
 
         result = evaluator.evaluate(ctx.submission, ctx.task)
+        # Honor the threshold the controller sends (single source: configs/thresholds.yaml -> Go
+        # EvalCriteria / params.thresholds), so a per-episode threshold override actually takes effect.
+        threshold = float(payload.get("threshold", result.threshold))
         return {
             "name": result.name,
-            "passed": bool(result.passed),
+            "passed": bool(result.score >= threshold),
             "score": float(result.score),
-            "threshold": float(result.threshold),
+            "threshold": threshold,
             "details": result.details,
         }
 

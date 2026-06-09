@@ -110,7 +110,7 @@ type Store struct {
 	mu      sync.Mutex
 	intents map[string]*Intent
 	events  map[string][]Event
-	clock   int // monotonic logical clock shared across all intents
+	clock   int // counter used only to mint fallback ids when no episode_id is supplied
 }
 
 func NewStore() *Store {
@@ -122,13 +122,15 @@ func (s *Store) get(id string) *Intent     { return s.intents[id] }
 func (s *Store) eventsFor(id string) []Event { return s.events[id] }
 
 func (s *Store) emit(id, eventType string, from, to *string, payload map[string]interface{}) {
-	s.clock++
 	if payload == nil {
 		payload = map[string]interface{}{}
 	}
+	// TsLogical is a PER-INTENT ordinal (1..N), not a global clock. This keeps an episode's
+	// trajectory byte-identical regardless of its position in a long-lived sweep process.
+	ordinal := len(s.events[id]) + 1
 	s.events[id] = append(s.events[id], Event{
 		IntentID: id, EventType: eventType, FromStatus: from, ToStatus: to,
-		Payload: payload, TsLogical: s.clock,
+		Payload: payload, TsLogical: ordinal,
 	})
 }
 

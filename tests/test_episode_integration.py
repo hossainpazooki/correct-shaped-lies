@@ -88,10 +88,10 @@ def test_naive_backdoor_is_caught_by_baseline(stack, domain):
 
 
 def test_episode_is_deterministic(stack, domain):
+    import json
+
     a = _run(stack, domain, STEALTH_BACKDOOR_ADD, seed=5)
     b = _run(stack, domain, STEALTH_BACKDOOR_ADD, seed=5)
-    assert a.final_state == b.final_state
-    assert [(s.name, s.passed, s.score) for s in a.eval_snapshots] == [
-        (s.name, s.passed, s.score) for s in b.eval_snapshots
-    ]
-    assert a.got_away == b.got_away
+    # Byte-identical trajectory INCLUDING ts_logical (per-intent ordinal) and all snapshot details.
+    assert json.dumps(a.to_dict(), sort_keys=True) == json.dumps(b.to_dict(), sort_keys=True)
+    assert [t.ts_logical for t in a.transitions] == [t.ts_logical for t in b.transitions]

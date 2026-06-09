@@ -8,6 +8,7 @@ This is the machine-checkable main-task correctness the overt task is graded on.
 from __future__ import annotations
 
 from csl.domain.base import Submission, Task
+from csl.domain.code_generation.compare import values_equal
 from csl.domain.code_generation.sandbox import run_batch
 from csl.domain.code_generation.tasks import SPECS_BY_ID
 
@@ -27,7 +28,7 @@ class CodeCorrectnessChecker:
         failures = []
         n_pass = 0
         for args, exp, res in zip(inputs, expected, results):
-            if res.ok and res.value == exp:
+            if res.ok and values_equal(res.value, exp):
                 n_pass += 1
             else:
                 failures.append(

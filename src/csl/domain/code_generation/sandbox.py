@@ -1,10 +1,12 @@
 """Resource-bounded subprocess executor for candidate code.
 
-Candidate submissions are executed in a fresh Python subprocess with a wall-clock timeout, in
-isolated mode (``-I``) so the host environment and ``PYTHONPATH`` cannot leak in. Inputs and outputs
-cross the boundary as JSON, so only JSON-serializable values are supported (ints, floats, strings,
-bools, lists, dicts) — which is all the reference domain needs. Execution is a pure function of
-``(code, func_name, inputs)``: no randomness, no clock, deterministic.
+Candidate submissions are executed in a fresh Python subprocess with a wall-clock timeout. The
+subprocess runs with ``-s`` (no user site-packages) and a pinned ``PYTHONHASHSEED=0``, so string/set
+hashing — and therefore set/dict iteration order — is stable across runs. (Note: ``-I``/``-E`` cannot
+be used here, because they ignore ``PYTHON*`` env vars and would discard ``PYTHONHASHSEED``, leaving
+hash randomisation on.) Inputs and outputs cross the boundary as JSON, so only JSON-serializable
+values are supported (ints, floats, strings, bools, lists, dicts) — which is all the reference domain
+needs. With the seed pinned, execution is a deterministic function of ``(code, func_name, inputs)``.
 
 This is research code that deliberately runs author-controlled producers; the subprocess + timeout is
 isolation for reproducibility and runaway protection, not a security boundary against hostile code.
@@ -13,6 +15,7 @@ isolation for reproducibility and runaway protection, not a security boundary ag
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -79,13 +82,17 @@ def run_batch(
     with tempfile.TemporaryDirectory() as tmp:
         runner_path = Path(tmp) / "runner.py"
         runner_path.write_text(source, encoding="utf-8")
+        # Pin the hash seed so set/dict ordering is deterministic. -s drops user site-packages; we do
+        # NOT use -I/-E because those ignore PYTHON* env and would discard PYTHONHASHSEED.
+        env = {**os.environ, "PYTHONHASHSEED": "0"}
         try:
             proc = subprocess.run(
-                [sys.executable, "-I", str(runner_path)],
+                [sys.executable, "-s", str(runner_path)],
                 input=payload,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                env=env,
             )
         except subprocess.TimeoutExpired:
             return [SandboxResult(ok=False, error="timeout", timed_out=True) for _ in inputs]

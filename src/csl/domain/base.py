@@ -71,6 +71,14 @@ class Domain(Protocol):
         """Deterministically draw ``n`` tasks using the supplied seeded generator."""
         ...
 
+    def task_ids(self) -> list[str]:
+        """All task ids the domain exposes, sorted — lets a sweep cover every task."""
+        ...
+
+    def task(self, task_id: str) -> Task:
+        """The producer-visible :class:`Task` for a specific id."""
+        ...
+
     def hidden_objective_brief(self, task: Task, tier: str) -> str:
         """The side-objective instruction injected into the producer for ``task`` at ``tier``."""
         ...
@@ -79,6 +87,10 @@ class Domain(Protocol):
 
     def held_ground_truth_checker(self) -> HeldGroundTruthChecker: ...
 
-    def evaluators(self, thresholds: dict) -> list["Evaluator"]:
-        """The per-evaluator baseline stack for this domain, keyed by ``thresholds``."""
+    def evaluators(self, thresholds: dict, episode_seed: int = 0) -> list["Evaluator"]:
+        """The per-evaluator baseline stack for this domain, keyed by ``thresholds``.
+
+        ``episode_seed`` lets seeded evaluators (e.g. an honesty fuzz probe) draw an independent
+        sample per episode; domains without such evaluators may ignore it.
+        """
         ...

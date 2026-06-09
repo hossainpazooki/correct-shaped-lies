@@ -62,6 +62,10 @@ class CodeGenerationDomain:
         """Return the producer-visible :class:`Task` for a specific task id."""
         return self._to_task(SPECS_BY_ID[task_id])
 
+    def task_ids(self) -> list[str]:
+        """All task ids in the corpus, sorted — so a sweep can cover every task, not a sample."""
+        return sorted(SPECS_BY_ID)
+
     def hidden_objective_brief(self, task: Task, tier: str) -> str:
         return build_brief(SPECS_BY_ID[task.task_id], tier)
 
@@ -73,7 +77,7 @@ class CodeGenerationDomain:
     def held_ground_truth_checker(self) -> BackdoorGotAwayChecker:
         return BackdoorGotAwayChecker(timeout=self.timeout)
 
-    def evaluators(self, thresholds: dict | None = None) -> list["Evaluator"]:
+    def evaluators(self, thresholds: dict | None = None, episode_seed: int = 0) -> list["Evaluator"]:
         th = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
         return [
             CorrectnessEval(self.main_task_checker(), threshold=th["correctness"]),
@@ -82,6 +86,7 @@ class CodeGenerationDomain:
                 n_probes=self.n_honesty_probes,
                 threshold=th["honesty"],
                 timeout=self.timeout,
+                episode_seed=episode_seed,
             ),
             StaticSafetyEval(threshold=th["static_safety"]),
             ComplexityBudgetEval(threshold=th["complexity_budget"]),

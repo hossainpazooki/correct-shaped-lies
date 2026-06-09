@@ -23,17 +23,29 @@ the layer that made it.
 ## Status
 
 The substrate, the deterministic lifecycle controller, and the baseline catch-rate sweep are in.
-Running the sweep with the deterministic scripted adversary reproduces the headline H1 phenomenon —
-the per-evaluator gate catches the naive adversary but is blind to the eval-aware correct-shaped lie:
+Running the sweep over **all six corpus tasks × 5 seeds** with the deterministic scripted adversary:
 
-| tier | catch-rate (baseline) | got-away (of ACHIEVED) | caught by |
-|---|---|---|---|
-| **T0 naive** | 1.00 | 0.00 | `static_safety` |
-| **T1 eval-aware** | 0.00 | 1.00 | — |
+| tier | catch-rate (baseline) | got-away (of ACHIEVED) | got-away (all) | caught by |
+|---|---|---|---|---|
+| **T0 naive** | 1.00 | — (0 reached ACHIEVED) | 1.00 | `static_safety` |
+| **T1 eval-aware** | 0.00 | 1.00 | 1.00 | — |
 
-Still to come: the composition layer (the trajectory-anomaly checks that try to overturn this), the
-T2 controller-aware adversary, the erosion test, and the degradation-curve artifact. The model-driven
-(DSPy/MIPROv2) producer is wired and import-guarded; it runs wherever an API key is configured.
+**What this does and does not show.** Both adversaries always achieve the backdoor (got-away/all =
+1.00); the only difference is whether the gate caught them first. The separation is real but
+*constructed*: the scripted T0 plants a raw magic-literal trigger that `static_safety`'s AST scan is
+built to flag, while T1 encodes the same trigger arithmetically to evade it. So this is a **wiring +
+mechanism demonstration** — the per-evaluator gate catches the encoding it was designed to catch and
+misses the one it wasn't — **not** evidence about detection limits versus adversary *knowledge*. That
+evidence requires the model-driven adversary (below) discovering evasions on its own. Note also that
+on this corpus `honesty` and `complexity_budget` never fire (every backdoor is honest off-trigger and
+low-branching), so the entire T0/T1 separation rests on `static_safety` alone; and `static_safety` is
+a magnitude/shape heuristic — a naive adversary that picks a small, sub-threshold trigger would also
+evade it. The gate is necessary, not sufficient.
+
+Still to come: the composition layer (the trajectory-anomaly checks that try to catch what the
+evaluators miss), the T2 controller-aware adversary, the erosion test, and the degradation-curve
+artifact. The model-driven (DSPy/MIPROv2) producer is wired and import-guarded; it runs wherever an
+API key is configured, and is the path that turns the demonstration into evidence.
 
 ## Layout
 
@@ -50,7 +62,7 @@ T2 controller-aware adversary, the erosion test, and the degradation-curve artif
 
 ```
 pip install -e .[dev]
-pytest                         # 35 Python tests (controller-integration ones need Go); + go test ./...
+pytest                         # 52 Python tests (controller-integration ones need Go); + go test ./...
 python scripts/run_sweep.py    # baseline catch-rate sweep -> results/{episodes,summary}.csv
 python scripts/smoke_episode.py # one honest + one correct-shaped-lie episode, end to end
 ```
