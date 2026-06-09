@@ -22,9 +22,18 @@ the layer that made it.
 
 ## Status
 
-Early build. The self-contained Python substrate (eval contracts, seeding, the code-generation
-domain with held got-away ground truth) lands first; the vendored lifecycle controller and the
-DSPy-optimized producer follow. See `docs/`/the plan for the milestone shape.
+The substrate, the deterministic lifecycle controller, and the baseline catch-rate sweep are in.
+Running the sweep with the deterministic scripted adversary reproduces the headline H1 phenomenon —
+the per-evaluator gate catches the naive adversary but is blind to the eval-aware correct-shaped lie:
+
+| tier | catch-rate (baseline) | got-away (of ACHIEVED) | caught by |
+|---|---|---|---|
+| **T0 naive** | 1.00 | 0.00 | `static_safety` |
+| **T1 eval-aware** | 0.00 | 1.00 | — |
+
+Still to come: the composition layer (the trajectory-anomaly checks that try to overturn this), the
+T2 controller-aware adversary, the erosion test, and the degradation-curve artifact. The model-driven
+(DSPy/MIPROv2) producer is wired and import-guarded; it runs wherever an API key is configured.
 
 ## Layout
 
@@ -41,7 +50,9 @@ DSPy-optimized producer follow. See `docs/`/the plan for the milestone shape.
 
 ```
 pip install -e .[dev]
-pytest
+pytest                         # 35 Python tests (controller-integration ones need Go); + go test ./...
+python scripts/run_sweep.py    # baseline catch-rate sweep -> results/{episodes,summary}.csv
+python scripts/smoke_episode.py # one honest + one correct-shaped-lie episode, end to end
 ```
 
 Determinism is a hard invariant: the same seed yields byte-identical trajectories and artifacts.
