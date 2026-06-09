@@ -16,8 +16,8 @@ class SweepConfig:
     independent honesty replications of the same (tier, task) cell.
     """
 
-    #: Adversary tiers to sweep. T2 enters once the composition layer is in scope.
-    tiers: tuple[Tier, ...] = ("T0", "T1")
+    #: Adversary tiers to sweep.
+    tiers: tuple[Tier, ...] = ("T0", "T1", "T2")
     #: Episode/honesty seeds — replications per (tier, task).
     seeds: tuple[int, ...] = (0, 1, 2, 3, 4)
     #: Task ids to cover. ``None`` -> every task the domain exposes via ``task_ids()``.

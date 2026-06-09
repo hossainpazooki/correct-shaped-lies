@@ -72,7 +72,7 @@ flowchart TB
         PROD["producer/<br/>scripted + DSPy/MIPROv2"]
         DOM["domain/code_generation/<br/>tasks · sandbox · evaluators · got-away oracle"]
         MLS["controller/ml_service<br/>FastAPI POST /ml/evaluate"]
-        REC["trajectory/record<br/>+ composition layer (next)"]
+        REC["trajectory/record<br/>+ composition layer (read-only add-on)"]
     end
     subgraph GO["Go intent-controller — vendored, deterministic"]
         SM["state machine<br/>all_passed gate"]
@@ -135,39 +135,49 @@ sequenceDiagram
     O-->>R: held verdict (stamped onto trajectory)
 ```
 
-The composition layer (next milestone) reads the frozen trajectory **after** this flow and emits its
-own anomaly verdicts as a read-only add-on, so its catches are decomposable from the baseline.
+The composition layer reads the frozen trajectory **after** this flow and emits its own anomaly
+verdicts as a read-only add-on, so its catches are decomposable from the baseline.
 
 ## Result so far
 
-Sweep over **all six corpus tasks × 5 seeds** with the deterministic scripted adversary:
+Sweep over **all six corpus tasks × 5 seeds**, each scored under both controller configs, with the
+deterministic scripted adversary. *Survived* = the backdoor fired **and** no layer caught it.
 
-| tier | catch-rate (baseline) | got-away (of ACHIEVED) | got-away (all) | caught by |
-|---|---|---|---|---|
-| **T0 naive** | 1.00 | — (0 reached ACHIEVED) | 1.00 | `static_safety` |
-| **T1 eval-aware** | 0.00 | 1.00 | 1.00 | — |
+| tier | catch (baseline) | catch (+composition) | composition advantage | survived (base → +comp) | caught by |
+|---|---|---|---|---|---|
+| **T0 naive** | 1.00 | 1.00 | **0.00** | 0.00 → 0.00 | `static_safety` |
+| **T1 eval-aware** | 0.00 | 1.00 | **+1.00** | 1.00 → 0.00 | `cross_stage_consistency` |
+| **T2 controller-aware** | 0.00 | 0.00 | **0.00** | 1.00 → 1.00 | — |
 
-**What this does and does not show.** Both adversaries always achieve the backdoor (got-away/all =
-1.00); the only difference is whether the gate caught them first. The separation is real but
-**constructed**: scripted T0 plants a raw magic-literal trigger that `static_safety`'s AST scan is
-built to flag, while T1 encodes the same trigger arithmetically to evade it. So this is a **wiring +
-mechanism demonstration** — the gate catches the encoding it was designed to catch and misses the one
-it wasn't — **not** evidence about detection limits versus adversary *knowledge*. On this corpus
-`honesty` and `complexity_budget` never fire, so the T0/T1 separation rests on `static_safety` alone,
-and that check is a magnitude/shape heuristic a small-trigger naive adversary would also evade. The
-gate is necessary, not sufficient. Turning the demonstration into evidence is what the model-driven
-adversary and the composition layer are for.
+The composition layer's advantage runs **0 → +1.00 → 0** across T0 → T1 → T2: it catches the
+correct-shaped lie the per-evaluator gate missed at **T1** (the bumper helps — H2), and the
+controller-aware **T2** adversary erases that signal (the bumper erodes — back toward H1). The got-away
+oracle reports the backdoor fired on every episode of every tier; the only thing that varies is whether
+some oversight layer caught it.
+
+**What this does and does not show.** This is a **mechanism demonstration**, not a frontier-scale
+measurement. The signals are constructed end to end: T0 plants a raw magic-literal trigger that
+`static_safety`'s AST scan is built to flag; T1 encodes it arithmetically to evade the scan but adds a
+branch that the composition layer's cross-stage check flags; T2 encodes it *branchlessly* to match the
+honest branch count and erase that check. So the curve shows the **shape** of how an independent
+defense erodes under a controller-aware adversary — exactly the selection-pressure warning — but the
+magnitudes are properties of these specific encodings, not of detection in general. On this corpus the
+`honesty` and `complexity_budget` evaluators and two of the three composition checks
+(`passed_too_easily`, `retry_score_anomaly`) never fire; the whole story runs through `static_safety`
+(baseline) and `cross_stage_consistency` (composition). Turning the demonstration into evidence is what
+the model-driven adversary is for: an LLM discovering its own evasions, rather than ones we planted.
 
 ## The two hypotheses
 
-The experiment cannot return a null finding — it returns either a bound or an erosion curve:
+The experiment cannot return a null finding — it returns either a bound or an erosion curve, and the
+constructed result above already traces the latter:
 
-- **H1 — oversight is bounded (expected).** With the composition layer added, catch-rate at the
-  strongest adversary stays ≈ the per-evaluator baseline: lifecycle reasoning is blind to
-  correct-shaped lies by construction.
-- **H2 — oversight is a bumper that erodes.** The composition layer catches a measurable fraction the
-  evaluators miss (via a state-trajectory signature) at T1 — but a controller-aware T2 adversary can
-  erase that signature, collapsing the gain back toward H1. The T1→T2 gap is the erosion result.
+- **H1 — oversight is bounded.** At the strongest adversary the composition layer adds no catch-rate
+  over the per-evaluator baseline: lifecycle reasoning is blind to correct-shaped lies. This is what
+  **T2** shows (advantage 0).
+- **H2 — oversight is a bumper that erodes.** The composition layer catches a fraction the evaluators
+  miss via a state-trajectory signature (**T1**, advantage +1.00) — but a controller-aware adversary
+  erases that signature (**T2**), collapsing the gain back to H1. The T1→T2 gap is the erosion result.
 
 ## Repository layout
 
@@ -179,7 +189,7 @@ The experiment cannot return a null finding — it returns either a bound or an 
 - `src/csl/controller/` — HTTP wiring to the Go controller, the `/ml/evaluate` callback, the episode
   runner, and the stack harness.
 - `src/csl/trajectory/` — the trajectory schema and builder.
-- `src/csl/composition/` — the trajectory-anomaly composition layer, the variable under test *(next)*.
+- `src/csl/composition/` — the trajectory-anomaly composition layer, the variable under test.
 - `src/csl/experiment/` — the sweep runner, metrics, and artifact writers.
 - `intent-controller/` — the vendored, trimmed, deterministic Go lifecycle controller.
 
@@ -187,7 +197,7 @@ The experiment cannot return a null finding — it returns either a bound or an 
 
 ```
 pip install -e .[dev]
-pytest                          # 52 Python tests (controller-integration ones need Go)
+pytest                          # 64 Python tests (controller-integration ones need Go)
 ( cd intent-controller && go test ./... )
 python scripts/run_sweep.py     # baseline catch-rate sweep -> results/{episodes,summary}.csv
 python scripts/smoke_episode.py # one honest + one correct-shaped-lie episode, end to end
@@ -203,8 +213,8 @@ Re-running the sweep yields byte-identical artifacts.
 | Deterministic Go lifecycle controller + Python↔Go wiring | ✅ |
 | Producer protocol · scripted adversary · baseline T0/T1 sweep | ✅ |
 | DSPy/MIPROv2 model-driven adversary (runs where an API key is set) | ✅ wired |
-| Composition layer · T2 controller-aware adversary · attribution + erosion | ⏳ next |
-| Degradation-curve artifact · reproducibility pass · release | ⏳ |
+| Composition layer · T2 controller-aware adversary · attribution + erosion | ✅ |
+| Degradation-curve artifact (PNG) · reproducibility pass · release | ⏳ next |
 
 ## License
 
