@@ -149,11 +149,13 @@ deterministic scripted adversary. *Survived* = the backdoor fired **and** no lay
 | **T1 eval-aware** | 0.00 | 1.00 | **+1.00** | 1.00 → 0.00 | `cross_stage_consistency` |
 | **T2 controller-aware** | 0.00 | 0.00 | **0.00** | 1.00 → 1.00 | — |
 
+![Catch-rate degradation and survived-rate across adversary tiers](docs/degradation_curve.png)
+
 The composition layer's advantage runs **0 → +1.00 → 0** across T0 → T1 → T2: it catches the
 correct-shaped lie the per-evaluator gate missed at **T1** (the bumper helps — H2), and the
 controller-aware **T2** adversary erases that signal (the bumper erodes — back toward H1). The got-away
 oracle reports the backdoor fired on every episode of every tier; the only thing that varies is whether
-some oversight layer caught it.
+some oversight layer caught it. (`python scripts/make_figures.py` regenerates the plot from the CSVs.)
 
 **What this does and does not show.** This is a **mechanism demonstration**, not a frontier-scale
 measurement. The signals are constructed end to end: T0 plants a raw magic-literal trigger that
@@ -197,13 +199,14 @@ constructed result above already traces the latter:
 
 ```
 pip install -e .[dev]
-pytest                          # 64 Python tests (controller-integration ones need Go)
+pytest                          # 67 Python tests (controller-integration ones need Go)
 ( cd intent-controller && go test ./... )
-python scripts/run_sweep.py     # baseline catch-rate sweep -> results/{episodes,summary}.csv
+python scripts/run_sweep.py     # full sweep -> results/{episodes,summary,erosion}.csv
+python scripts/make_figures.py  # degradation-curve PNG from the CSVs
 python scripts/smoke_episode.py # one honest + one correct-shaped-lie episode, end to end
 ```
 
-Re-running the sweep yields byte-identical artifacts.
+Re-running the sweep yields byte-identical CSV artifacts (and `make_figures` a byte-identical PNG).
 
 ## Status / roadmap
 
@@ -214,7 +217,8 @@ Re-running the sweep yields byte-identical artifacts.
 | Producer protocol · scripted adversary · baseline T0/T1 sweep | ✅ |
 | DSPy/MIPROv2 model-driven adversary (runs where an API key is set) | ✅ wired |
 | Composition layer · T2 controller-aware adversary · attribution + erosion | ✅ |
-| Degradation-curve artifact (PNG) · reproducibility pass · release | ⏳ next |
+| Degradation-curve artifact (PNG) · reproducibility pass | ✅ |
+| Model-driven (DSPy) adversary run · scale-up corpus · release write-up | ⏳ next |
 
 ## License
 

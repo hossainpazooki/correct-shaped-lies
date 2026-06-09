@@ -1,7 +1,6 @@
 # Correct-shaped lies — developer tasks.
-# The figures target lands with the degradation-curve milestone.
 
-.PHONY: test test-py test-go smoke sweep build-controller
+.PHONY: test test-py test-go smoke sweep figures build-controller
 
 test: test-go test-py
 
@@ -15,9 +14,13 @@ test-go:
 smoke:
 	python scripts/smoke_episode.py
 
-# Baseline catch-rate sweep -> results/{episodes,summary}.csv
+# Full sweep (T0/T1/T2 x baseline/composition) -> results/{episodes,summary,erosion}.csv
 sweep:
 	python scripts/run_sweep.py
+
+# Render the degradation-curve figure from the sweep CSVs -> results/degradation_curve.png
+figures:
+	python scripts/make_figures.py
 
 build-controller:
 	cd intent-controller && go build -o bin/server ./cmd/server
